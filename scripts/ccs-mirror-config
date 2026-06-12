@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# ccc-mirror-config — 讓第二（含以後第 N）Claude 帳號的「設定」完全鏡像主帳號
+# ccs-mirror-config — 讓第二（含以後第 N）Claude 帳號的「設定」完全鏡像主帳號
 # 做法：把主帳號 ~/.claude 的「純設定」項目 symlink 進目標 config 目錄，
 #       主帳號改什麼，目標帳號自動跟上 → 兩者只差在「登入身份 / 對話歷史」。
-# Usage: ccc-mirror-config [目標config目錄]   (預設 = $CLAUDE_CONFIG_DIR_2)
+# Usage: ccs-mirror-config [目標config目錄]   (預設 = $CLAUDE_CONFIG_DIR_2)
 set -euo pipefail
 
 SRC="$HOME/.claude"

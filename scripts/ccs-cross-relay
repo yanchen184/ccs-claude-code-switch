@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ccc-cross-relay — Claude ↔ Codex 跨工具接力
+# ccs-cross-relay — Claude ↔ Codex 跨工具接力
 # 用途：Codex 斷了用 Claude 接，或反過來
-# Usage: ccc-cross-relay [path]
+# Usage: ccs-cross-relay [path]
 # 依賴：fzf、python3；claude / codex 至少各一個
 set -euo pipefail
 
@@ -144,7 +144,7 @@ done
 echo "✅ 用 ${DEST} 接續 ${SOURCE} 的對話，產出 handoff 中…"
 
 cd "$TARGET" || exit 1
-HANDOFF_FILE="$abs/.ccc-handoff.md"
+HANDOFF_FILE="$abs/.ccs-handoff.md"
 
 python3 - "$SOURCE" "$src_path" "$abs" "$HANDOFF_FILE" <<'PYEOF'
 import json, sys, os, subprocess, re
@@ -249,7 +249,7 @@ for role, text in messages[-6:]:
 
 # 產出 handoff capsule
 now = datetime.now().strftime('%Y-%m-%d %H:%M')
-capsule = f"""# CCC Handoff Capsule
+capsule = f"""# CCS Handoff Capsule
 > {source.capitalize()} → {('Claude' if source == 'codex' else 'Codex')} | {now}
 > Source: `{os.path.basename(src_path)}`
 
@@ -294,7 +294,7 @@ echo ""
 echo "📋 Handoff capsule → $HANDOFF_FILE"
 echo ""
 
-RELAY_PROMPT="你正在接手另一個 agent 的工作。請先讀 .ccc-handoff.md（在當前目錄），了解：
+RELAY_PROMPT="你正在接手另一個 agent 的工作。請先讀 .ccs-handoff.md（在當前目錄），了解：
 1. 原始任務是什麼
 2. 上一步做到哪裡
 3. 還有什麼沒完成
@@ -302,7 +302,7 @@ RELAY_PROMPT="你正在接手另一個 agent 的工作。請先讀 .ccc-handoff.
 讀完後告訴我你的理解，並問我要從哪裡繼續。"
 
 if [ "$DEST" = "claude" ]; then
-  RESUME_FLAGS="${CCC_CLAUDE_FLAGS:-}"
+  RESUME_FLAGS="${CCS_CLAUDE_FLAGS:-}"
   # 初始 prompt 是位置參數，不是 flag（claude --prompt 會報 unknown option）
   exec claude $RESUME_FLAGS "$RELAY_PROMPT"
 else

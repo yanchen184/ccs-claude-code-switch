@@ -1,9 +1,9 @@
-# ccc — AI agent 多帳號無縫切換
+# ccs — AI agent 多帳號無縫切換
 
 > 把一個會 hit limit 的帳號，變成兩個輪流用、且**同一場對話接得起來**的帳號。
 > 支援 Claude Code 與 Codex，模組可分開裝（只有其中一個也行）。
 
-額度爆了不用乾等刷新，也不用重開一場對話從頭講。`ccc` 一鍵切到第二個帳號，
+額度爆了不用乾等刷新，也不用重開一場對話從頭講。`ccs` 一鍵切到第二個帳號，
 **把同一串對話搬過去用它的額度繼續跑**，脈絡完全不斷。
 
 ---
@@ -13,10 +13,10 @@
 把這段貼給 Claude Code，它會自己裝好：
 
 ```
-請幫我安裝 ccc 多帳號切換系統：
-1. git clone https://github.com/yanchen184/ccc-switch.git ~/.claude/skills/ccc-switch
+請幫我安裝 ccs 多帳號切換系統：
+1. git clone https://github.com/yanchen184/ccs-claude-code-switch.git ~/.claude/skills/ccs-switch
 2. 確認 fzf 已安裝（沒有就 brew install fzf 或 apt install fzf）
-3. 跑 bash ~/.claude/skills/ccc-switch/scripts/install.sh
+3. 跑 bash ~/.claude/skills/ccs-switch/scripts/install.sh
 4. 確認 ~/bin 在我的 PATH
 5. 裝完跟我說「接下來要自己做哪幾步登入」，登入指令準備好給我貼，但 login 我自己按
 ```
@@ -24,13 +24,13 @@
 或自己手動裝：
 
 ```bash
-git clone https://github.com/yanchen184/ccc-switch.git ~/.claude/skills/ccc-switch
+git clone https://github.com/yanchen184/ccs-claude-code-switch.git ~/.claude/skills/ccs-switch
 brew install fzf        # macOS；Linux 用 apt/dnf install fzf
-bash ~/.claude/skills/ccc-switch/scripts/install.sh
+bash ~/.claude/skills/ccs-switch/scripts/install.sh
 ```
 
 install.sh 會偵測你裝了 claude / codex 哪個，只裝對應模組，並印出「接下來只做你需要的設定」。
-然後在終端輸入 `ccc` 就有選單。
+然後在終端輸入 `ccs` 就有選單。
 
 > ⚠️ 安裝後仍需你**自己跑一次 login**（開瀏覽器、輸第二個帳號的帳密／2FA）——
 > 那一步沒人能代勞，但其餘設定都自動。
@@ -51,7 +51,7 @@ install.sh 會偵測你裝了 claude / codex 哪個，只裝對應模組，並�
 | 身份隔離 | `CLAUDE_CONFIG_DIR` 環境變數 | `CODEX_HOME` 環境變數 |
 | 對話檔位置 | `<config>/projects/<cwd>/<id>.jsonl` | `<home>/sessions/YYYY/MM/DD/rollout-*.jsonl` |
 | 接續指令 | `claude --resume <id>` | `codex resume <uuid>` |
-| 接力腳本 | `ccc-resume2` | `ccc-codex-resume` |
+| 接力腳本 | `ccs-resume2` | `ccs-codex-resume` |
 
 ---
 
@@ -59,10 +59,10 @@ install.sh 會偵測你裝了 claude / codex 哪個，只裝對應模組，並�
 
 | 你要做的事 | 怎麼做 |
 |---|---|
-| 一般工作 | `ccc` → 選主帳號（自動走 `ccc-watch`，rate limit 時會提示切換） |
+| 一般工作 | `ccs` → 選主帳號（自動走 `ccs-watch`，rate limit 時會提示切換） |
 | 撞 limit、自動提示 | Claude Code 因 rate limit 結束 → 自動問「切帳號？(Y/n)」→ 按 Y 直接接力 |
-| 撞 limit、手動接力 | `ccc` → `接力` → 選方向 → 挑對話 |
-| Codex 斷了用 Claude 接 | `ccc` → `跨工具接力` → 選方向 → 挑 Codex 對話 → Claude 自動讀取接續 |
+| 撞 limit、手動接力 | `ccs` → `接力` → 選方向 → 挑對話 |
+| Codex 斷了用 Claude 接 | `ccs` → `跨工具接力` → 選方向 → 挑 Codex 對話 → Claude 自動讀取接續 |
 
 ---
 

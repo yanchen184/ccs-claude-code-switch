@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — 安裝 ccc 多帳號切換（依你裝了什麼，自動挑模組）
+# install.sh — 安裝 ccs 多帳號切換（依你裝了什麼，自動挑模組）
 # 用法：bash install.sh
 set -euo pipefail
 
@@ -16,14 +16,14 @@ echo ""
 
 # 選單核心一定裝
 echo "安裝核心選單："
-install_one ccc
+install_one ccs
 
 # ── Claude 模組 ───────────────────────────────────────────────────────────────
 if has claude; then
   echo "偵測到 Claude Code → 安裝 Claude 模組："
-  install_one ccc-resume2
-  install_one ccc-mirror-config
-  install_one ccc-watch
+  install_one ccs-resume2
+  install_one ccs-mirror-config
+  install_one ccs-watch
   CLAUDE_OK=1
 else
   echo "－ 沒偵測到 claude，略過 Claude 模組"
@@ -33,7 +33,7 @@ fi
 # ── Codex 模組 ────────────────────────────────────────────────────────────────
 if has codex; then
   echo "偵測到 Codex → 安裝 Codex 模組："
-  install_one ccc-codex-resume
+  install_one ccs-codex-resume
   CODEX_OK=1
 else
   echo "－ 沒偵測到 codex，略過 Codex 模組"
@@ -43,7 +43,7 @@ fi
 # ── 跨工具接力模組 ────────────────────────────────────────────────────────────
 if has claude && has codex; then
   echo "偵測到 Claude + Codex → 安裝跨工具接力模組："
-  install_one ccc-cross-relay
+  install_one ccs-cross-relay
 fi
 
 echo ""
@@ -71,10 +71,10 @@ if [ "$CODEX_OK" = 1 ]; then
 1) 建兩個 home 並各自登入（名字可自取，例 a / b）：
      CODEX_HOME="$HOME/.codex-homes/a" codex login
      CODEX_HOME="$HOME/.codex-homes/b" codex login
-   （ccc 會自動列出 ~/.codex-homes 底下所有 home）
+   （ccs 會自動列出 ~/.codex-homes 底下所有 home）
 
 TXT
 fi
 
-echo "完成後輸入 ccc，選單只會顯示你實際裝好的 agent。"
+echo "完成後輸入 ccs，選單只會顯示你實際裝好的 agent。"
 echo "Antigravity / Gemini 若有裝會自動出現，沒有就不顯示，純選配。"

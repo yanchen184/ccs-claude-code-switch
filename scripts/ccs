@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ccc — 多帳號 AI agent 啟動選單（自動偵測你裝了什麼）
+# ccs — 多帳號 AI agent 啟動選單（自動偵測你裝了什麼）
 # 只會顯示你電腦上實際存在的 agent。沒有的就不出現。
-# Usage: ccc [path]
+# Usage: ccs [path]
 # 依賴：fzf（必要）；claude / codex / gemini 至少一個
 set -euo pipefail
 
 TARGET="${1:-.}"
-CLAUDE_FLAGS="${CCC_CLAUDE_FLAGS:-}"                    # 自訂 flag，例如 export CCC_CLAUDE_FLAGS="--dangerously-skip-permissions"
+CLAUDE_FLAGS="${CCS_CLAUDE_FLAGS:-}"                    # 自訂 flag，例如 export CCS_CLAUDE_FLAGS="--dangerously-skip-permissions"
 A2="${CLAUDE_CONFIG_DIR_2:-$HOME/.claude-2}"
 CODEX_HOMES="${CODEX_ACCOUNT_HOMES_DIR:-$HOME/.codex-homes}"
 
@@ -44,7 +44,7 @@ if has claude && has codex; then
   items+=("跨工具接力 · Claude ↔ Codex 互接對話")
 fi
 
-[ ${#items[@]} -gt 0 ] || { echo "找不到任何 agent（claude / codex / gemini）。先裝一個再用 ccc。"; exit 1; }
+[ ${#items[@]} -gt 0 ] || { echo "找不到任何 agent（claude / codex / gemini）。先裝一個再用 ccs。"; exit 1; }
 
 while true; do
   sel=$(printf '%s\n' "${items[@]}" | fzf \
@@ -56,27 +56,27 @@ while true; do
   case "$sel" in
     "Claude Code (1)"*)
       cd "$TARGET" || exit 1
-      exec env CCC_ACCOUNT=1 ccc-watch $CLAUDE_FLAGS
+      exec env CCS_ACCOUNT=1 ccs-watch $CLAUDE_FLAGS
       ;;
     Claude\ Code\ \(2\)*)
       if [ ! -d "$A2" ]; then
         echo "⚠  第二 Claude 帳號未設定。見 SKILL.md「Claude 模組」。"
         continue
       fi
-      ccc-mirror-config "$A2" >/dev/null 2>&1 || true
+      ccs-mirror-config "$A2" >/dev/null 2>&1 || true
       cd "$TARGET" || exit 1
-      exec env CCC_ACCOUNT=2 CLAUDE_CONFIG_DIR="$A2" ccc-watch $CLAUDE_FLAGS
+      exec env CCS_ACCOUNT=2 CLAUDE_CONFIG_DIR="$A2" ccs-watch $CLAUDE_FLAGS
       ;;
     Claude\ 接力*)
-      ccc-resume2 "$TARGET" || true
+      ccs-resume2 "$TARGET" || true
       continue
       ;;
     Codex\ 接力*)
-      ccc-codex-resume || true
+      ccs-codex-resume || true
       continue
       ;;
     跨工具接力*)
-      ccc-cross-relay "$TARGET" || true
+      ccs-cross-relay "$TARGET" || true
       continue
       ;;
     Codex\ ·\ 單一帳號)

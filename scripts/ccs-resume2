@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ccc-resume2 — 跨 Claude 帳號 resume 對話（雙向）
+# ccs-resume2 — 跨 Claude 帳號 resume 對話（雙向）
 # 用途：某帳號額度爆了，把某串對話搬到另一帳號用它的額度接著做
-# Usage: ccc-resume2 [path]   (path 預設當前目錄)
+# Usage: ccs-resume2 [path]   (path 預設當前目錄)
 # 依賴：claude CLI、fzf、python3
 set -euo pipefail
 
@@ -83,7 +83,7 @@ echo "✅ 對話 ${id}：帳號(${src_n}) → 帳號(${dst_n})，啟動中（吃
 echo ""
 
 cd "$TARGET" || exit 1
-RESUME_FLAGS="${CCC_CLAUDE_FLAGS:-}"
+RESUME_FLAGS="${CCS_CLAUDE_FLAGS:-}"
 if [ "$DST" = "$HOME/.claude" ]; then
   exec claude $RESUME_FLAGS --resume "$id"
 else

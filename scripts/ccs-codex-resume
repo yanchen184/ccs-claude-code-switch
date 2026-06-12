@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ccc-codex-resume — 用另一個 Codex 帳號的額度，resume 某帳號的對話
-# 精神同 ccc-resume2：選方向 → 挑對話 → 複製 session 檔到目標帳號 → resume
+# ccs-codex-resume — 用另一個 Codex 帳號的額度，resume 某帳號的對話
+# 精神同 ccs-resume2：選方向 → 挑對話 → 複製 session 檔到目標帳號 → resume
 # 預設兩個 home：a / b（可自己改名，數量不限）
 # 依賴：codex CLI、fzf、python3
 set -euo pipefail

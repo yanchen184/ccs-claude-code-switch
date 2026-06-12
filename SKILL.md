@@ -1,9 +1,9 @@
 ---
-name: ccc-switch
-description: 在自己的電腦建立「AI agent 多帳號無縫切換」系統（ccc）。用兩個便宜帳號取代一個貴方案，撞到使用限制時一鍵切換、並把同一場對話接續到另一帳號繼續跑。支援 Claude Code 與 Codex，模組可分開裝（只有其中一個也行）。觸發詞：ccc、帳號切換、multi-account、第二個 claude 帳號、codex 多帳號、額度爆了怎麼切、conversation resume across accounts。
+name: ccs-switch
+description: 在自己的電腦建立「AI agent 多帳號無縫切換」系統（ccs）。用兩個便宜帳號取代一個貴方案，撞到使用限制時一鍵切換、並把同一場對話接續到另一帳號繼續跑。支援 Claude Code 與 Codex，模組可分開裝（只有其中一個也行）。觸發詞：ccs、帳號切換、multi-account、第二個 claude 帳號、codex 多帳號、額度爆了怎麼切、conversation resume across accounts。
 ---
 
-# ccc — AI agent 多帳號無縫切換
+# ccs — AI agent 多帳號無縫切換
 
 > 一句話：把一個會 hit limit 的帳號，變成兩個輪流用、且**同一場對話接得起來**的帳號。
 
@@ -15,7 +15,7 @@ description: 在自己的電腦建立「AI agent 多帳號無縫切換」系統�
 
 每一場對話其實是一個 `.jsonl` 檔躺在硬碟上。所以「換帳號繼續同一場對話」不需要任何雲端魔法——把那個檔複製到另一個帳號的目錄，再用那個帳號 `resume` 它就好。額度算第二個帳號的，脈絡卻完全不斷。
 
-**⚠️ Claude Code 2.1.169+ 注意事項**：新版 jsonl 包含 `bridge-session` 條目（伺服器端對話狀態），綁定原帳號的 API session。`ccc-resume2` 會在複製時自動清除這些條目，讓目標帳號從本地紀錄重建對話。
+**⚠️ Claude Code 2.1.169+ 注意事項**：新版 jsonl 包含 `bridge-session` 條目（伺服器端對話狀態），綁定原帳號的 API session。`ccs-resume2` 會在複製時自動清除這些條目，讓目標帳號從本地紀錄重建對話。
 
 這就是整套系統的靈魂。其他都是讓它順手的工程。
 
@@ -24,19 +24,19 @@ description: 在自己的電腦建立「AI agent 多帳號無縫切換」系統�
 | 身份隔離 | `CLAUDE_CONFIG_DIR` 環境變數 | `CODEX_HOME` 環境變數 |
 | 對話檔位置 | `<config>/projects/<cwd>/<id>.jsonl` | `<home>/sessions/YYYY/MM/DD/rollout-*.jsonl` |
 | 接續指令 | `claude --resume <id>` | `codex resume <uuid>` |
-| 接力腳本 | `ccc-resume2` | `ccc-codex-resume` |
+| 接力腳本 | `ccs-resume2` | `ccs-codex-resume` |
 
-**你不必跟我一模一樣。** 只有 Claude 就裝 Claude 模組；只有 Codex 就裝 Codex 模組；兩個都有就都裝。Antigravity、Gemini 純選配，裝了 ccc 會自動偵測顯示，沒有就不出現。
+**你不必跟我一模一樣。** 只有 Claude 就裝 Claude 模組；只有 Codex 就裝 Codex 模組；兩個都有就都裝。Antigravity、Gemini 純選配，裝了 ccs 會自動偵測顯示，沒有就不出現。
 
 ## 安裝（自動挑模組）
 
 前置：`fzf`（必要）、`python3`、`~/bin` 在 PATH；`claude` / `codex` 至少裝一個。
 
 ```bash
-bash ~/.claude/skills/ccc-switch/scripts/install.sh
+bash ~/.claude/skills/ccs-switch/scripts/install.sh
 ```
 
-它會偵測你裝了什麼，只裝對應模組，並印出「接下來只做你需要的設定」。然後輸入 `ccc` 就有選單。
+它會偵測你裝了什麼，只裝對應模組，並印出「接下來只做你需要的設定」。然後輸入 `ccs` 就有選單。
 
 ## Claude 模組
 
@@ -46,9 +46,9 @@ bash ~/.claude/skills/ccc-switch/scripts/install.sh
 |---|---|---|
 | **身份層** | 一個帳號 = 一個設定目錄 | `CLAUDE_CONFIG_DIR`。帳號1 = 不設（預設 `~/.claude`）；帳號2 = `~/.claude-2` |
 | **認證層** | macOS Keychain 自動隔離 token | 服務名 = `Claude Code-credentials-<sha256(設定目錄絕對路徑)[:8]>`；**未設變數時用裸名** `Claude Code-credentials` |
-| **設定層** | symlink 鏡像，自動同步 | `ccc-mirror-config` 把 `settings/rules/skills/commands/agents/hooks` 用 `ln -s` 鏈到帳號2 |
-| **歷史層** | 按需複製單一對話檔（自動清除 bridge-session） | `ccc-resume2`：過濾 bridge-session → 複製 `.jsonl` → `claude --resume` |
-| **偵測層** | rate limit 自動提示切換 | `ccc-watch`：包裝 claude，exit 時偵測 rate limit → 提示接力 |
+| **設定層** | symlink 鏡像，自動同步 | `ccs-mirror-config` 把 `settings/rules/skills/commands/agents/hooks` 用 `ln -s` 鏈到帳號2 |
+| **歷史層** | 按需複製單一對話檔（自動清除 bridge-session） | `ccs-resume2`：過濾 bridge-session → 複製 `.jsonl` → `claude --resume` |
+| **偵測層** | rate limit 自動提示切換 | `ccs-watch`：包裝 claude，exit 時偵測 rate limit → 提示接力 |
 
 ### ⚠️ Keychain 雜湊陷阱（最大的雷）
 
@@ -57,7 +57,7 @@ Claude 的 token 服務名會根據 `CLAUDE_CONFIG_DIR` 做 sha256 雜湊。
 - 帳號2 設了 `CLAUDE_CONFIG_DIR=~/.claude-2` → 找雜湊版條目 ✅
 - **但若對「主帳號」也硬設 `CLAUDE_CONFIG_DIR=~/.claude`** → 去找雜湊版（空的）→ **每次都要重登**
 
-**鐵律：resume 回主帳號必須「裸跑」**（完全不設變數）。`ccc-resume2` 已內建判斷。
+**鐵律：resume 回主帳號必須「裸跑」**（完全不設變數）。`ccs-resume2` 已內建判斷。
 
 設定：
 ```bash
@@ -74,7 +74,7 @@ Codex 用 `CODEX_HOME` 隔離身份，登入 token 是各 home 自己的 `auth.j
 CODEX_HOME="$HOME/.codex-homes/a" codex login
 CODEX_HOME="$HOME/.codex-homes/b" codex login
 ```
-`ccc` 會自動列出 `~/.codex-homes` 底下所有 home，外加「Codex 接力」。
+`ccs` 會自動列出 `~/.codex-homes` 底下所有 home，外加「Codex 接力」。
 
 ## ⚠️ 安全邊界：哪些絕對不能共用
 
@@ -87,16 +87,16 @@ Claude 的 `.claude.json` / `projects/` / `sessions/`；Codex 的各自 `session
 
 | 你要做的事 | 怎麼做 |
 |---|---|
-| 一般工作 | `ccc` → 選主帳號（自動走 `ccc-watch`，rate limit 時會提示切換） |
-| 撞 limit、自動提示 | Claude Code 因 rate limit 結束 → `ccc-watch` 自動問「切帳號？(Y/n)」→ 按 Y 直接接力 |
-| 撞 limit、手動接力 | `ccc` → `接力` → 選方向 → 挑對話 |
-| 直接在第二帳號開新對話 | `ccc` → 選第二帳號（Claude 會先自動鏡像設定） |
-| Codex 斷了用 Claude 接 | `ccc` → `跨工具接力` → 選方向 → 挑 Codex 對話 → Claude 自動讀取接續 |
-| Claude 斷了用 Codex 接 | `ccc` → `跨工具接力` → 選方向 → 挑 Claude 對話 → Codex 自動讀取接續 |
+| 一般工作 | `ccs` → 選主帳號（自動走 `ccs-watch`，rate limit 時會提示切換） |
+| 撞 limit、自動提示 | Claude Code 因 rate limit 結束 → `ccs-watch` 自動問「切帳號？(Y/n)」→ 按 Y 直接接力 |
+| 撞 limit、手動接力 | `ccs` → `接力` → 選方向 → 挑對話 |
+| 直接在第二帳號開新對話 | `ccs` → 選第二帳號（Claude 會先自動鏡像設定） |
+| Codex 斷了用 Claude 接 | `ccs` → `跨工具接力` → 選方向 → 挑 Codex 對話 → Claude 自動讀取接續 |
+| Claude 斷了用 Codex 接 | `ccs` → `跨工具接力` → 選方向 → 挑 Claude 對話 → Codex 自動讀取接續 |
 
 切過去後，除了登入身份不同，設定/skill/hook 全一致，幾乎感覺不到換了帳號。
 
-**Rate limit 自動偵測**：從 `ccc` 選單啟動的 Claude Code 都經過 `ccc-watch` 包裝。當 Claude Code 因 rate limit 退出時，會自動偵測並提示切換帳號，不需要手動輸入任何指令。
+**Rate limit 自動偵測**：從 `ccs` 選單啟動的 Claude Code 都經過 `ccs-watch` 包裝。當 Claude Code 因 rate limit 退出時，會自動偵測並提示切換帳號，不需要手動輸入任何指令。
 
 ## Desktop App / 網頁端搭配
 
