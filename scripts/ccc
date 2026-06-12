@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# ccc — 多帳號 AI agent 啟動選單（自動偵測你裝了什麼）
+# 只會顯示你電腦上實際存在的 agent。沒有的就不出現。
+# Usage: ccc [path]
+# 依賴：fzf（必要）；claude / codex / gemini 至少一個
+set -euo pipefail
+
+TARGET="${1:-.}"
+CLAUDE_FLAGS="${CCC_CLAUDE_FLAGS:-}"                    # 自訂 flag，例如 export CCC_CLAUDE_FLAGS="--dangerously-skip-permissions"
+A2="${CLAUDE_CONFIG_DIR_2:-$HOME/.claude-2}"
+CODEX_HOMES="${CODEX_ACCOUNT_HOMES_DIR:-$HOME/.codex-homes}"
+
+has() { command -v "$1" >/dev/null 2>&1; }
+
+# ── 依「實際安裝情況」組選單 ──────────────────────────────────────────────────
+items=()
+
+# ① Claude Code 帳號
+if has claude; then
+  items+=("Claude Code (1)  · 主帳號")
+  if [ -d "$A2" ]; then items+=("Claude Code (2)  · 第二帳號")
+  else items+=("Claude Code (2)  · 未設定（見 SKILL.md）"); fi
+fi
+
+# ② Codex 帳號
+if has codex; then
+  if [ -d "$CODEX_HOMES" ] && compgen -G "$CODEX_HOMES/*/" >/dev/null; then
+    for h in "$CODEX_HOMES"/*/; do items+=("Codex · $(basename "$h")"); done
+  else
+    items+=("Codex · 單一帳號")
+  fi
+fi
+
+# ③ 同工具跨帳號接力
+if has claude && [ -d "$A2" ]; then
+  items+=("Claude 接力 · 跨帳號 resume 同一場對話 (1↔2)")
+fi
+if has codex && [ -d "$CODEX_HOMES" ] && compgen -G "$CODEX_HOMES/*/" >/dev/null; then
+  items+=("Codex 接力 · 換帳號 resume 同一場對話")
+fi
+
+# ④ 跨工具接力
+if has claude && has codex; then
+  items+=("跨工具接力 · Claude ↔ Codex 互接對話")
+fi
+
+[ ${#items[@]} -gt 0 ] || { echo "找不到任何 agent（claude / codex / gemini）。先裝一個再用 ccc。"; exit 1; }
+
+while true; do
+  sel=$(printf '%s\n' "${items[@]}" | fzf \
+        --prompt="選擇要執行的 agent: " --height=~12 --border=none \
+        --no-info --pointer="▌" \
+        --color="pointer:#ff79c6,hl:#bd93f9,hl+:#ff79c6") || exit 0
+
+  # ── 啟動 ────────────────────────────────────────────────────────────────────
+  case "$sel" in
+    "Claude Code (1)"*)
+      cd "$TARGET" || exit 1
+      exec env CCC_ACCOUNT=1 ccc-watch $CLAUDE_FLAGS
+      ;;
+    Claude\ Code\ \(2\)*)
+      if [ ! -d "$A2" ]; then
+        echo "⚠  第二 Claude 帳號未設定。見 SKILL.md「Claude 模組」。"
+        continue
+      fi
+      ccc-mirror-config "$A2" >/dev/null 2>&1 || true
+      cd "$TARGET" || exit 1
+      exec env CCC_ACCOUNT=2 CLAUDE_CONFIG_DIR="$A2" ccc-watch $CLAUDE_FLAGS
+      ;;
+    Claude\ 接力*)
+      ccc-resume2 "$TARGET" || true
+      continue
+      ;;
+    Codex\ 接力*)
+      ccc-codex-resume || true
+      continue
+      ;;
+    跨工具接力*)
+      ccc-cross-relay "$TARGET" || true
+      continue
+      ;;
+    Codex\ ·\ 單一帳號)
+      cd "$TARGET" || exit 1
+      exec codex
+      ;;
+    Codex\ ·\ *)
+      name="${sel#Codex · }"
+      cd "$TARGET" || exit 1
+      exec env CODEX_HOME="$CODEX_HOMES/$name" codex
+      ;;
+  esac
+done

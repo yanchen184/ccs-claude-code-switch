@@ -1,0 +1,310 @@
+#!/usr/bin/env bash
+# ccc-cross-relay — Claude ↔ Codex 跨工具接力
+# 用途：Codex 斷了用 Claude 接，或反過來
+# Usage: ccc-cross-relay [path]
+# 依賴：fzf、python3；claude / codex 至少各一個
+set -euo pipefail
+
+TARGET="${1:-.}"
+A1="$HOME/.claude"
+A2="${CLAUDE_CONFIG_DIR_2:-$HOME/.claude-2}"
+CODEX_HOMES="${CODEX_ACCOUNT_HOMES_DIR:-$HOME/.codex-homes}"
+CODEX_DEFAULT="$HOME/.codex"
+BACK="← 上一頁"
+
+FZF=(fzf --height=~15 --border=none --pointer="▌"
+     --color="pointer:#ff79c6,hl:#bd93f9,hl+:#ff79c6")
+
+abs=$(cd "$TARGET" && pwd)
+
+# ── 找 Codex 對話（掃所有帳號，比對 cwd）───────────────────────────────────
+find_codex_sessions() {
+  local search_cwd="$1"
+  local homes=()
+  [ -d "$CODEX_DEFAULT/sessions" ] && homes+=("$CODEX_DEFAULT")
+  if [ -d "$CODEX_HOMES" ]; then
+    for h in "$CODEX_HOMES"/*/; do
+      [ -d "$h/sessions" ] && homes+=("${h%/}")
+    done
+  fi
+
+  for home in "${homes[@]}"; do
+    local account_name
+    if [ "$home" = "$CODEX_DEFAULT" ]; then
+      account_name="default"
+    else
+      account_name=$(basename "$home")
+    fi
+    find "$home/sessions" -name '*.jsonl' -type f 2>/dev/null | while read -r f; do
+      local cwd
+      cwd=$(head -1 "$f" | python3 -c "
+import sys,json
+try:
+  d=json.loads(sys.stdin.readline())
+  print(d.get('payload',{}).get('cwd',''))
+except: print('')" 2>/dev/null)
+      if [ "$cwd" = "$search_cwd" ]; then
+        local ts first lines
+        ts=$(head -1 "$f" | python3 -c "
+import sys,json
+try:
+  d=json.loads(sys.stdin.readline())
+  t=d.get('payload',{}).get('timestamp','')[:16]
+  print(t.replace('T',' '))
+except: print('')" 2>/dev/null)
+        lines=$(wc -l < "$f" | tr -d ' ')
+        first=$(grep '"role":"user"' "$f" 2>/dev/null | sed -n '2p' | python3 -c "
+import sys,json
+try:
+  d=json.loads(sys.stdin.readline())
+  c=d.get('payload',{}).get('content','')
+  if isinstance(c,list):
+    for x in c:
+      if isinstance(x,dict) and x.get('text',''):
+        print(x['text'].replace(chr(10),' ')[:50]); break
+  elif isinstance(c,str): print(c[:50])
+except: print('')" 2>/dev/null)
+        printf '%s\t[%s] %s  %s行  %s\n' "$f" "$account_name" "$ts" "$lines" "$first"
+      fi
+    done
+  done
+}
+
+# ── 找 Claude 對話（目錄結構直接對應 cwd）─────────────────────────────────
+find_claude_sessions() {
+  local search_cwd="$1"
+  local proj="${search_cwd//\//-}"
+
+  for config_dir in "$A1" "$A2"; do
+    [ -d "$config_dir/projects/$proj" ] || continue
+    local account_name
+    if [ "$config_dir" = "$A1" ]; then
+      account_name="帳號1"
+    else
+      account_name="帳號2"
+    fi
+    ls -t "$config_dir/projects/$proj"/*.jsonl 2>/dev/null | while read -r f; do
+      local ts first
+      ts=$(date -r "$f" "+%Y-%m-%d %H:%M")
+      first=$(grep -m1 '"role":"user"' "$f" 2>/dev/null \
+              | python3 -c "
+import sys,json
+try:
+  d=json.loads(sys.stdin.readline())
+  c=d.get('message',{}).get('content',d.get('content',''))
+  t=c if isinstance(c,str) else ' '.join(p.get('text','') for p in c if isinstance(p,dict))
+  print(t.replace(chr(10),' ')[:50])
+except: print('')" 2>/dev/null)
+      printf '%s\t[%s] %s  %s\n' "$f" "$account_name" "$ts" "$first"
+    done
+  done
+}
+
+while true; do
+  # ── 1. 選方向 ──────────────────────────────────────────────────────────
+  dir=$(printf '%s\n' \
+        "用 Claude 接續 Codex 的對話" \
+        "用 Codex 接續 Claude 的對話" \
+        | "${FZF[@]}" --no-info --prompt="跨工具接力方向: " 2>/dev/null) || exit 130
+
+  case "$dir" in
+    *"Claude 接續 Codex"*) SOURCE="codex"; DEST="claude" ;;
+    *"Codex 接續 Claude"*) SOURCE="claude"; DEST="codex" ;;
+    *) exit 0 ;;
+  esac
+
+  # ── 2. 找來源對話 ──────────────────────────────────────────────────────
+  sessions=""
+  if [ "$SOURCE" = "codex" ]; then
+    sessions=$(find_codex_sessions "$abs" | sort -t$'\t' -k2)
+  else
+    sessions=$(find_claude_sessions "$abs" | sort -t$'\t' -k2)
+  fi
+
+  if [ -z "$sessions" ]; then
+    echo "❌ 在 $(basename "$abs") 找不到 ${SOURCE} 的對話紀錄"
+    continue
+  fi
+
+  # ── 3. 挑對話 ──────────────────────────────────────────────────────────
+  sel=$( { echo -e "\t$BACK"; echo "$sessions"; } \
+        | "${FZF[@]}" --with-nth=2.. --delimiter='\t' \
+              --prompt="挑要接續的 ${SOURCE} 對話: " 2>/dev/null) || exit 130
+
+  src_path=$(printf '%s' "$sel" | cut -f1)
+
+  if [ -z "$src_path" ] || [[ "$sel" == *"$BACK"* ]]; then
+    continue
+  fi
+
+  break
+done
+
+# ── 4. 產 compact handoff capsule ────────────────────────────────────────
+echo "✅ 用 ${DEST} 接續 ${SOURCE} 的對話，產出 handoff 中…"
+
+cd "$TARGET" || exit 1
+HANDOFF_FILE="$abs/.ccc-handoff.md"
+
+python3 - "$SOURCE" "$src_path" "$abs" "$HANDOFF_FILE" <<'PYEOF'
+import json, sys, os, subprocess, re
+from datetime import datetime
+
+source, src_path, cwd, out_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
+messages = []    # (role, text)
+tool_files = set()
+
+with open(src_path) as f:
+    for line in f:
+        try:
+            d = json.loads(line)
+        except:
+            continue
+
+        if source == 'codex':
+            if d.get('type') != 'response_item':
+                continue
+            p = d.get('payload', {})
+            role = p.get('role', '')
+            content = p.get('content', '')
+            if isinstance(content, list):
+                text = ' '.join(x.get('text', '') for x in content if isinstance(x, dict))
+            elif isinstance(content, str):
+                text = content
+            else:
+                continue
+            # 抓檔案路徑
+            if role == 'assistant':
+                for m in re.findall(r'(?:^|\s)([\w./\-]+\.(?:tsx?|jsx?|css|json|md|py|sh|yaml|toml|html))', text):
+                    if not m.startswith('http'):
+                        tool_files.add(m)
+            if role in ('user', 'assistant') and text.strip():
+                messages.append((role, text))
+
+        else:  # claude
+            role = d.get('role', '')
+            if role in ('user', 'assistant'):
+                c = d.get('message', {}).get('content', d.get('content', ''))
+                if isinstance(c, str):
+                    text = c
+                elif isinstance(c, list):
+                    text = ' '.join(p.get('text', '') for p in c if isinstance(p, dict))
+                else:
+                    continue
+                if role == 'assistant':
+                    for m in re.findall(r'(?:^|\s)([\w./\-]+\.(?:tsx?|jsx?|css|json|md|py|sh|yaml|toml|html))', text):
+                        if not m.startswith('http'):
+                            tool_files.add(m)
+                if text.strip():
+                    messages.append((role, text))
+
+# 提取結構化欄位
+first_user = ''
+for role, text in messages:
+    if role == 'user' and len(text) > 20:
+        # 跳過系統指令（AGENTS.md / permissions 等）
+        if not text.startswith('<') and 'AGENTS' not in text[:50] and 'permissions' not in text[:50]:
+            first_user = text[:500]
+            break
+
+last_assistant = ''
+for role, text in reversed(messages):
+    if role == 'assistant' and len(text) > 20:
+        last_assistant = text[:1000]
+        break
+
+last_user = ''
+for role, text in reversed(messages):
+    if role == 'user' and len(text) > 10:
+        if not text.startswith('<') and 'AGENTS' not in text[:50]:
+            last_user = text[:500]
+            break
+
+# git diff --stat
+try:
+    diff = subprocess.check_output(
+        ['git', 'diff', '--stat', 'HEAD'],
+        cwd=cwd, stderr=subprocess.DEVNULL, timeout=5
+    ).decode().strip()
+except:
+    diff = '(無法取得)'
+
+try:
+    unstaged = subprocess.check_output(
+        ['git', 'status', '--short'],
+        cwd=cwd, stderr=subprocess.DEVNULL, timeout=5
+    ).decode().strip()
+except:
+    unstaged = ''
+
+# 最後 3 輪對話（compact 版）
+recent = []
+for role, text in messages[-6:]:
+    label = 'User' if role == 'user' else source.capitalize()
+    # 過濾系統指令
+    if text.startswith('<') or 'AGENTS' in text[:50] or 'permissions' in text[:50]:
+        continue
+    recent.append(f"**{label}**: {text[:400]}")
+
+# 產出 handoff capsule
+now = datetime.now().strftime('%Y-%m-%d %H:%M')
+capsule = f"""# CCC Handoff Capsule
+> {source.capitalize()} → {('Claude' if source == 'codex' else 'Codex')} | {now}
+> Source: `{os.path.basename(src_path)}`
+
+## Original Task
+{first_user if first_user else '(無法提取)'}
+
+## Last User Request
+{last_user if last_user else '(同上)'}
+
+## Last Progress
+{last_assistant if last_assistant else '(無法提取)'}
+
+## Files Touched
+{chr(10).join('- ' + f for f in sorted(tool_files)[:20]) if tool_files else '(無法提取)'}
+
+## Uncommitted Changes
+```
+{diff if diff else '(clean)'}
+```
+
+{('## Untracked / Modified' + chr(10) + '```' + chr(10) + unstaged + chr(10) + '```') if unstaged else ''}
+
+## Recent Conversation (last 3 exchanges)
+{chr(10).join(recent) if recent else '(無法提取)'}
+
+---
+Full transcript: `{src_path}`
+"""
+
+with open(out_path, 'w') as f:
+    f.write(capsule)
+
+print(capsule[:200] + '...')
+PYEOF
+
+if [ ! -f "$HANDOFF_FILE" ]; then
+  echo "❌ Handoff 產出失敗"
+  exit 1
+fi
+
+echo ""
+echo "📋 Handoff capsule → $HANDOFF_FILE"
+echo ""
+
+RELAY_PROMPT="你正在接手另一個 agent 的工作。請先讀 .ccc-handoff.md（在當前目錄），了解：
+1. 原始任務是什麼
+2. 上一步做到哪裡
+3. 還有什麼沒完成
+
+讀完後告訴我你的理解，並問我要從哪裡繼續。"
+
+if [ "$DEST" = "claude" ]; then
+  RESUME_FLAGS="${CCC_CLAUDE_FLAGS:-}"
+  # 初始 prompt 是位置參數，不是 flag（claude --prompt 會報 unknown option）
+  exec claude $RESUME_FLAGS "$RELAY_PROMPT"
+else
+  exec codex "$RELAY_PROMPT"
+fi
