@@ -40,15 +40,16 @@ bash ~/.claude/skills/ccs-switch/scripts/install.sh
 
 ## Claude 模組
 
-四層設計，進階用戶照這個複製：
+分層設計，進階用戶照這個複製：
 
 | 層 | 機制 | 關鍵 term |
 |---|---|---|
 | **身份層** | 一個帳號 = 一個設定目錄 | `CLAUDE_CONFIG_DIR`。帳號1 = 不設（預設 `~/.claude`）；帳號2 = `~/.claude-2` |
 | **認證層** | macOS Keychain 自動隔離 token | 服務名 = `Claude Code-credentials-<sha256(設定目錄絕對路徑)[:8]>`；**未設變數時用裸名** `Claude Code-credentials` |
-| **設定層** | symlink 鏡像，自動同步 | `ccs-mirror-config` 把 `settings/rules/skills/commands/agents/hooks` 用 `ln -s` 鏈到帳號2 |
+| **設定層** | symlink 鏡像，自動同步 | `ccs-mirror-config` 把 `settings/rules/skills/commands/agents/hooks/scripts` 用 `ln -s` 鏈到帳號2 |
 | **歷史層** | 按需複製單一對話檔（自動清除 bridge-session） | `ccs-resume2`：過濾 bridge-session → 複製 `.jsonl` → `claude --resume` |
 | **偵測層** | rate limit 自動提示切換 | `ccs-watch`：包裝 claude，exit 時偵測 rate limit → 提示接力 |
+| **狀態列** | 底部顯示目前帳號與 session | `statusline-command.sh`：`[帳號編號] email` + `sess:<id 前 6 碼>` |
 
 ### ⚠️ Keychain 雜湊陷阱（最大的雷）
 
@@ -64,6 +65,28 @@ Claude 的 token 服務名會根據 `CLAUDE_CONFIG_DIR` 做 sha256 雜湊。
 echo 'export CLAUDE_CONFIG_DIR_2="$HOME/.claude-2"' >> ~/.zshrc && source ~/.zshrc
 CLAUDE_CONFIG_DIR="$HOME/.claude-2" claude   # 用第二個 email 跑 /login
 ```
+
+### 狀態列：一眼看出是哪個帳號、哪場 session
+
+```text
+[1] you@example.com ~/project  main *  ctx:42%  Opus 5.5  sess:b95e2b
+[2] second@example.com ~/project  main *  ctx:8%  Opus 5.5  sess:a0b4bd
+```
+
+- `[1]` / `[2]` / `[3]`：依 `CLAUDE_CONFIG_DIR`（`~/.claude`、`~/.claude-2`、`~/.claude-3`）判斷
+- email：該帳號 `.claude.json` 的 `oauthAccount.emailAddress`
+- `sess:`：session id 前 6 碼，也就是對話檔 `<id>.jsonl` 的檔名開頭
+
+`install.sh` 會把腳本放到 `~/.claude/scripts/`（已有不同版本會先備份）。需要 `jq`，並在 `~/.claude/settings.json` 加上：
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "sh \"$HOME/.claude/scripts/statusline-command.sh\""
+}
+```
+
+帳號2 不用另外設：`ccs-mirror-config` 把 `settings.json` 與 `scripts/` symlink 過去，兩個帳號共用同一支腳本。
 
 ## Codex 模組
 
