@@ -66,6 +66,33 @@ install.sh 會偵測你裝了 claude / codex 哪個，只裝對應模組，並�
 
 ---
 
+## 狀態列：一眼看出現在是哪個帳號、哪場 session
+
+`scripts/statusline-command.sh` 讓 Claude Code 底部顯示帳號編號、登入 email 與 session 短碼：
+
+```text
+[1] you@example.com ~/project  main *  ctx:42%  Opus 5.5  sess:b95e2b
+[2] second@example.com ~/project  main *  ctx:8%  Opus 5.5  sess:a0b4bd
+```
+
+- `[1]` / `[2]` / `[3]`：依 `CLAUDE_CONFIG_DIR`（`~/.claude`、`~/.claude-2`、`~/.claude-3`）判斷
+- email：該帳號 `.claude.json` 的 `oauthAccount.emailAddress`
+- `sess:`：session id 前 6 碼，也就是對話檔 `<id>.jsonl` 的檔名開頭
+
+`install.sh` 偵測到 Claude Code 時會把腳本放到 `~/.claude/scripts/`（已有不同版本會先備份）。
+接著在 `~/.claude/settings.json` 加上：
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "sh \"$HOME/.claude/scripts/statusline-command.sh\""
+}
+```
+
+腳本需要 `jq`（`brew install jq` / `apt install jq`）。`ccs-mirror-config` 會把 `settings.json` 與 `scripts/` symlink 到第二帳號，兩個帳號共用同一支腳本。
+
+---
+
 ## ⚠️ 安全邊界
 
 兩帳號**同時跑**時，這些檔會被並發寫入弄壞，必須各自獨立：

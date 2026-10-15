@@ -9,6 +9,15 @@ mkdir -p "$BIN"
 
 has() { command -v "$1" >/dev/null 2>&1; }
 install_one() { cp "$HERE/$1" "$BIN/$1"; chmod +x "$BIN/$1"; echo "  ✅ $BIN/$1"; }
+install_statusline() {
+  local dst="$HOME/.claude/scripts/statusline-command.sh"
+  mkdir -p "$(dirname "$dst")"
+  if [ -f "$dst" ] && ! cmp -s "$HERE/statusline-command.sh" "$dst"; then
+    cp "$dst" "$dst.bak-$(date +%Y%m%d-%H%M%S)"
+    echo "  ↺ 既有 $dst 已備份"
+  fi
+  cp "$HERE/statusline-command.sh" "$dst"; chmod +x "$dst"; echo "  ✅ $dst"
+}
 
 echo "偵測環境…"
 has fzf || { echo "❌ 需要 fzf：brew install fzf"; exit 1; }
@@ -24,6 +33,7 @@ if has claude; then
   install_one ccs-resume2
   install_one ccs-mirror-config
   install_one ccs-watch
+  install_statusline
   CLAUDE_OK=1
 else
   echo "－ 沒偵測到 claude，略過 Claude 模組"
@@ -61,6 +71,9 @@ if [ "$CLAUDE_OK" = 1 ]; then
      source ~/.zshrc
 2) 登入第二帳號一次（用第二個 email 跑 /login）：
      CLAUDE_CONFIG_DIR="$HOME/.claude-2" claude
+3) 狀態列顯示帳號與 session（需要 jq），在 ~/.claude/settings.json 加：
+     "statusLine": { "type": "command", "command": "sh \"$HOME/.claude/scripts/statusline-command.sh\"" }
+   再跑 ccs-mirror-config，第二帳號就會共用同一份設定與腳本。
 
 TXT
 fi
